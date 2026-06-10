@@ -29,16 +29,24 @@ async def search_products(
     await seed_stores(db)
     data = await run_search(db, q, area, stores, force_refresh)
     offers = data.get("offers", [])
-    if sort == "price":
-        offers = sorted(offers, key=lambda o: (o.get("price_bdt"), o.get("unit_price_bdt") or 0))
-    elif sort == "freshness":
-        offers = sorted(offers, key=lambda o: o.get("scraped_at", ""), reverse=True)
-    else:
-        offers = sorted(
-            offers,
-            key=lambda o: (o.get("unit_price_bdt") or o.get("price_bdt"), o.get("price_bdt")),
+    related = data.get("related_offers", [])
+
+    def sort_list(items: list, sort_key: str) -> list:
+        if sort_key == "price":
+            return sorted(items, key=lambda o: (o.get("price_bdt"), o.get("unit_price_bdt") or 0))
+        if sort_key == "freshness":
+            return sorted(items, key=lambda o: o.get("scraped_at", ""), reverse=True)
+        return sorted(
+            items,
+            key=lambda o: (
+                -(o.get("relevance_score") or 0),
+                o.get("unit_price_bdt") or o.get("price_bdt"),
+                o.get("price_bdt"),
+            ),
         )
-    data["offers"] = offers
+
+    data["offers"] = sort_list(offers, sort)
+    data["related_offers"] = sort_list(related, sort)
     return SearchResponse(**data)
 
 
@@ -54,13 +62,14 @@ async def search_stream(
 
     async def event_generator():
         yield f"data: {json.dumps({'event': 'started', 'job_id': job_id})}\n\n"
-        offers, checked, failed = await scrape_all_stores(q, area, stores, job_id)
+        scrape_result = await scrape_all_stores(q, area, stores, job_id)
         payload = {
             "event": "complete",
             "query": q,
-            "offers": offers,
-            "stores_checked": checked,
-            "stores_failed": failed,
+            "offers": scrape_result["offers"],
+            "related_offers": scrape_result["related_offers"],
+            "stores_checked": scrape_result["stores_checked"],
+            "stores_failed": scrape_result["stores_failed"],
         }
         yield f"data: {json.dumps(payload, default=str)}\n\n"
 

@@ -11,7 +11,7 @@ from app.core.redis_client import cache_key, get_cached_search, publish_job_even
 from app.models import Offer, PriceSnapshot, Product, SearchJob, SearchJobStatus, SearchResult, Store
 from app.scrapers.base import RawOffer
 from app.scrapers.registry import STORE_SEED, get_adapters_for_stores
-from app.services.matching import enrich_offer, mark_best_deals
+from app.services.matching import enrich_offer, mark_best_deals, partition_offers
 from app.services.unit_price import extract_unit_info
 
 logger = structlog.get_logger()
@@ -91,7 +91,14 @@ async def scrape_all_stores(
     for batch in results:
         all_offers.extend(batch)
 
-    return mark_best_deals(all_offers), checked, failed
+    exact, related = partition_offers(query, all_offers)
+    mark_best_deals(exact)
+    return {
+        "offers": exact,
+        "related_offers": related,
+        "stores_checked": checked,
+        "stores_failed": failed,
+    }
 
 
 async def persist_search_results(
@@ -164,17 +171,19 @@ async def run_search(
     await db.commit()
     await db.refresh(job)
 
-    offers, checked, failed = await scrape_all_stores(query, area, store_filter, str(job.id))
-    await persist_search_results(db, job, offers)
+    scrape_result = await scrape_all_stores(query, area, store_filter, str(job.id))
+    all_for_db = scrape_result["offers"] + scrape_result["related_offers"]
+    await persist_search_results(db, job, all_for_db)
 
     payload = {
         "query": query,
         "area": area,
         "cached": False,
         "job_id": str(job.id),
-        "offers": offers,
-        "stores_checked": checked,
-        "stores_failed": failed,
+        "offers": scrape_result["offers"],
+        "related_offers": scrape_result["related_offers"],
+        "stores_checked": scrape_result["stores_checked"],
+        "stores_failed": scrape_result["stores_failed"],
     }
     await set_cached_search(key, payload)
     return payload

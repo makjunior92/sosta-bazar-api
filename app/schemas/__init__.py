@@ -19,6 +19,7 @@ class OfferOut(BaseModel):
     in_stock: bool = True
     scraped_at: datetime | None = None
     is_best_deal: bool = False
+    relevance_score: int | None = None
 
 
 class SearchResponse(BaseModel):
@@ -27,6 +28,7 @@ class SearchResponse(BaseModel):
     cached: bool = False
     job_id: UUID | None = None
     offers: list[OfferOut] = Field(default_factory=list)
+    related_offers: list[OfferOut] = Field(default_factory=list)
     stores_checked: list[str] = Field(default_factory=list)
     stores_failed: list[str] = Field(default_factory=list)
 
