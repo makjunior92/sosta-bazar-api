@@ -14,7 +14,7 @@ ADAPTERS: dict[str, type[StoreAdapter]] = {
 STORE_SEED = [
     {"name": "Chaldal", "slug": "chaldal", "base_url": "https://chaldal.com", "adapter_key": "chaldal"},
     {"name": "Shwapno", "slug": "shwapno", "base_url": "https://www.shwapno.com", "adapter_key": "shwapno"},
-    {"name": "MeenaClick", "slug": "meenaclick", "base_url": "https://www.meenaclick.com", "adapter_key": "meenaclick"},
+    {"name": "MeenaClick", "slug": "meenaclick", "base_url": "https://meenabazaronline.com", "adapter_key": "meenaclick"},
     {"name": "Daraz dMart", "slug": "daraz-dmart", "base_url": "https://www.daraz.com.bd/dmart/", "adapter_key": "daraz-dmart"},
 ]
 

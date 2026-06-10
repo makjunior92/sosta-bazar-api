@@ -25,20 +25,32 @@ async def seed_stores(db: AsyncSession) -> None:
     await db.commit()
 
 
+def _json_safe(value):
+    if isinstance(value, Decimal):
+        return str(value)
+    if isinstance(value, dict):
+        return {k: _json_safe(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_json_safe(v) for v in value]
+    return value
+
+
 def raw_to_dict(offer: RawOffer, store_name: str, store_slug: str) -> dict:
     enriched = enrich_offer(offer)
-    return {
-        "title": enriched.title,
-        "store_name": store_name,
-        "store_slug": store_slug,
-        "price_bdt": enriched.price_bdt,
-        "unit_price_bdt": enriched.unit_price_bdt,
-        "product_url": enriched.product_url,
-        "image_url": enriched.image_url,
-        "in_stock": enriched.in_stock,
-        "scraped_at": datetime.now(timezone.utc).isoformat(),
-        "is_best_deal": False,
-    }
+    return _json_safe(
+        {
+            "title": enriched.title,
+            "store_name": store_name,
+            "store_slug": store_slug,
+            "price_bdt": enriched.price_bdt,
+            "unit_price_bdt": enriched.unit_price_bdt,
+            "product_url": enriched.product_url,
+            "image_url": enriched.image_url,
+            "in_stock": enriched.in_stock,
+            "scraped_at": datetime.now(timezone.utc).isoformat(),
+            "is_best_deal": False,
+        }
+    )
 
 
 async def scrape_all_stores(
